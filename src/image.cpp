@@ -1,5 +1,4 @@
 #include "../includes/image.h"
-
 void greet(std::string name)
 {
 
@@ -8,6 +7,7 @@ void greet(std::string name)
 
 std::vector<float> imageToTensor(const std::string &image_path, int &height, int &width)
 {
+
     // 加载图片
     cv::Mat img = cv::imread(image_path, cv::IMREAD_COLOR);
     if (img.empty())
@@ -16,6 +16,15 @@ std::vector<float> imageToTensor(const std::string &image_path, int &height, int
     }
 
     // 获取尺寸
+    // int i_height = img.rows; // 图片的真实高度
+    // int i_width = img.cols;  // 图片的真实宽度
+
+    // int *pad = compute_padding(i_height, i_width, 64);
+    // int left = pad[0], right = pad[1];
+    // int top = pad[2], bottom = pad[3];
+
+    // std::cout << "left:" << left << ",right:" << right << ",top:" << top << ",bottom:" << bottom << std::endl;
+
     height = img.rows;
     width = img.cols;
 
@@ -39,8 +48,9 @@ std::vector<float> imageToTensor(const std::string &image_path, int &height, int
         {
             for (int w = 0; w < width; ++w)
             {
-                // float rounded = std::round(channels[c].at<float>(h, w) * 10000.0f) / 10000.0f;
-                // tensor[c * height * width + h * width + w] = rounded;
+                // if (w < left || h < top || w >= width - right || h >= height - bottom)
+                //     tensor[c * height * width + h * width + w] = 0.00;
+                // else
                 tensor[c * height * width + h * width + w] = channels[c].at<float>(h, w);
             }
         }

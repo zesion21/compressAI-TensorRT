@@ -177,6 +177,11 @@ int compressImage(std::string input_path, std::string out_path, std::string engi
     // 0.将图片转化为张量
     std::vector<float> input_data = imageToTensor(input_path, imageHeight, imageWidth);
     std::cout << "input size : " << input_data.size() << std::endl;
+    int *pad = compute_padding(imageHeight, imageWidth, 64);
+
+    // 填充标准
+    int outHeight = imageHeight, outWidth = imageWidth;
+    fill_pading(input_data, outHeight, outWidth, pad);
 
     auto engine = loadEngine(engine_file);
     if (!engine)
@@ -185,13 +190,16 @@ int compressImage(std::string input_path, std::string out_path, std::string engi
         return -1;
     }
 
-    int latent_h = imageHeight / 16;
-    int latent_w = imageWidth / 16;
+    std::cout << "standard image shape:[" << outHeight << "," << outWidth << "]" << std::endl;
+
+    int latent_h = outHeight / 16;
+    int latent_w = outWidth / 16;
+    std::cout << "shape:[" << latent_h << "," << latent_w << "]" << std::endl;
     std::vector<float> x_out(1 * 320 * latent_w * latent_h);
     std::vector<int32_t> indexes(1 * 320 * latent_w * latent_h);
     std::vector<float> medians(1 * 320 * 1 * 1);
 
-    infer(engine, input_data.data(), imageHeight, imageWidth, x_out.data(), indexes.data(), medians.data());
+    infer(engine, input_data.data(), outHeight, outWidth, x_out.data(), indexes.data(), medians.data());
 
     std::vector<int32_t> out_put(1 * 320 * latent_w * latent_h);
     std::vector<int32_t> indexes_put(1 * 320 * latent_w * latent_h);
@@ -203,14 +211,13 @@ int compressImage(std::string input_path, std::string out_path, std::string engi
 
     quantize_by_block(x_out, medians, out_put, 1, 320, latent_h, latent_w);
 
-    RansEncoder encoder;
-
     std::vector<std::vector<int32_t>> cdfs;
     std::vector<int32_t> cdf_lengths;
     std::vector<int32_t> offsets;
     readJson(cdfs, cdf_lengths, offsets);
+
+    RansEncoder encoder;
     std::string str = encoder.encode_with_indexes(out_put, indexes, cdfs, cdf_lengths, offsets);
-    std::cout << "encode over !" << std::endl;
     writeFile(str, out_path + "_" + std::to_string(imageWidth) + "_" + std::to_string(imageHeight) + ".bin");
     return 0;
 }
@@ -220,11 +227,18 @@ int main()
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    std::string imagePath = "E:/work2/pythonProjects/CompressAI-master/examples/assets/stmalo_fracape.png";
+    std::string imagePath = "../../data/1.png";
     const std::string engine_file = "../models/encoder_max_2048.trt";
     std::string out_path = "../../out/1";
 
     compressImage(imagePath, out_path, engine_file);
+
+    // int *pad = compute_padding(654, 564, 16);
+
+    // for (size_t i = 0; i < 4; i++)
+    // {
+    //     std::cout << pad[i] << std::endl;
+    // }
 
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
