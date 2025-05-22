@@ -67,7 +67,31 @@ nvinfer1::ICudaEngine *loadEngine(const std::string &engineFile)
     file.read(engineData.data(), size);
 
     nvinfer1::IRuntime *runtime = nvinfer1::createInferRuntime(gLogger);
-    return runtime->deserializeCudaEngine(engineData.data(), size);
+
+    nvinfer1::ICudaEngine *engine(runtime->deserializeCudaEngine(engineData.data(), size));
+
+    // 打印 张量信息
+    // int nbTensors = engine->getNbIOTensors();
+    // std::cout << "Tensors Count: " << nbTensors << std::endl;
+    // for (int i = 0; i < nbTensors; ++i)
+    // {
+    //     const char *tensor_name = engine->getIOTensorName(i);
+    //     nvinfer1::TensorIOMode io_mode = engine->getTensorIOMode(tensor_name);
+    //     auto shape = engine->getTensorShape(tensor_name);
+    //     std::cout << "Tensor " << i << ": " << tensor_name << " (";
+    //     std::string ioModeName =
+    //         (io_mode == nvinfer1::TensorIOMode::kINPUT ? "input" : io_mode == nvinfer1::TensorIOMode::kOUTPUT ? "output"
+    //                                                                                                           : "other");
+
+    //     std::cout << ioModeName << "), shape: [";
+    //     for (int j = 0; j < shape.nbDims; ++j)
+    //     {
+    //         std::cout << shape.d[j] << (j < shape.nbDims - 1 ? ", " : "");
+    //     }
+    //     std::cout << "]" << std::endl;
+    // }
+
+    return engine;
 }
 
 // 推理函数
@@ -75,7 +99,7 @@ void infer(nvinfer1::ICudaEngine *engine, float *input, int height, int width, f
 {
     nvinfer1::IExecutionContext *context = engine->createExecutionContext();
     // 设置输入形状
-    int latent_h = height / 16; // 假设 4 次 stride=2 降采样
+    int latent_h = height / 16; // 4 次 stride=2 降采样
     int latent_w = width / 16;
     context->setInputShape("input", nvinfer1::Dims4{1, 3, height, width});
 
@@ -99,14 +123,16 @@ void infer(nvinfer1::ICudaEngine *engine, float *input, int height, int width, f
 
     // 清理
     for (int i = 0; i < 4; ++i)
+    {
         cudaFree(buffers[i]);
+    }
+
     // context->destroy();
 }
 
 // 用来输出张量到csv
-void writeTxt(std::vector<int32_t> indexes, std::string name)
+void writeTxt(auto indexes, std::string name)
 {
-
     std::ofstream outfile("../../out/entropy_cdf_" + name + ".csv"); // 打开或创建文件
     if (!outfile.is_open())
     {
@@ -116,34 +142,10 @@ void writeTxt(std::vector<int32_t> indexes, std::string name)
 
     for (size_t i = 0; i < indexes.size(); i++)
     {
-        // int32_t indexes_put = static_cast<int32_t>(round(indexes[i]));
         outfile << indexes[i] << "\n";
     }
 
-    // outfile << "Hello, world!\n";
-    // outfile << "写入一行文字到文本文件中。\n";
-    outfile.close(); // 关闭文件（最好手动关闭）
-}
-
-void writeTxt(std::vector<float> indexes, std::string name)
-{
-
-    std::ofstream outfile("../../out/entropy_cdf_" + name + ".csv"); // 打开或创建文件
-    if (!outfile.is_open())
-    {
-        std::cerr << "无法打开文件!" << std::endl;
-        return;
-    }
-
-    for (size_t i = 0; i < indexes.size(); i++)
-    {
-        // int32_t indexes_put = static_cast<int32_t>(round(indexes[i]));
-        outfile << indexes[i] << "\n";
-    }
-
-    // outfile << "Hello, world!\n";
-    // outfile << "写入一行文字到文本文件中。\n";
-    outfile.close(); // 关闭文件（最好手动关闭）
+    outfile.close(); // 关闭文件
 }
 
 // 生成bin文件
@@ -172,50 +174,21 @@ int writeFile(std::string data, std::string outPath)
     return 0;
 }
 
-int main()
+int pressImage(std::string input_path, std::string output_path, std::string engine_file)
 {
-
-    auto start = std::chrono::high_resolution_clock::now();
 
     int imageHeight = 0;
     int imageWidth = 0;
 
-    std::string imagePath = "E:/work2/pythonProjects/CompressAI-master/examples/assets/stmalo_fracape.png";
-    // std::string imagePath = "E:/work2/c/engine_runtime/1.jpg";
-    const std::string engine_file = "../models/encoder_max_2048.trt";
-
     // 0.将图片转化为张量
-    std::vector<float> input_data = imageToTensor(imagePath, imageHeight, imageWidth);
-    std::cout << input_data.size() << std::endl;
+    std::vector<float> input_data = imageToTensor(input_path, imageHeight, imageWidth);
+    std::cout << "input size:" << input_data.size() << std::endl;
 
     auto engine = loadEngine(engine_file);
     if (!engine)
     {
         std::cerr << "Failed to load engine" << std::endl;
         return -1;
-    }
-
-    int nbTensors = engine->getNbIOTensors();
-    std::cout << "Tensors Count: " << nbTensors << std::endl;
-
-    for (int i = 0; i < nbTensors; ++i)
-    {
-        const char *tensor_name = engine->getIOTensorName(i);
-        nvinfer1::TensorIOMode io_mode = engine->getTensorIOMode(tensor_name);
-        auto shape = engine->getTensorShape(tensor_name);
-        int size = 1;
-        std::cout << "Tensor " << i << ": " << tensor_name << " (";
-        std::cout << (io_mode == nvinfer1::TensorIOMode::kINPUT ? "input" : io_mode == nvinfer1::TensorIOMode::kOUTPUT ? "output"
-                                                                                                                       : "other");
-        std::cout << "), shape: [";
-        for (int j = 0; j < shape.nbDims; ++j)
-        {
-            size *= shape.d[j];
-            std::cout << shape.d[j] << (j < shape.nbDims - 1 ? ", " : "");
-        }
-        std::cout << "]" << std::endl;
-
-        // 分配缓冲区
     }
 
     int latent_h = imageHeight / 16;
@@ -226,34 +199,43 @@ int main()
 
     infer(engine, input_data.data(), imageHeight, imageWidth, x_out.data(), indexes.data(), medians.data());
 
-    std::vector<int32_t> out_put(1 * 320 * latent_w * latent_h);
-    std::vector<int32_t> indexes_put(1 * 320 * latent_w * latent_h);
-
     // writeTxt(input_data, "input_data");
     // writeTxt(indexes, "indexes");
     // writeTxt(x_out, "x_out");
     // writeTxt(medians, "medians");
 
+    std::vector<int32_t> out_put(1 * 320 * latent_w * latent_h);
     quantize_by_block(x_out, medians, out_put, 1, 320, latent_h, latent_w);
 
-    RansEncoder encoder;
-
+    // 从JSON获取cdf
     std::vector<std::vector<int32_t>> cdfs;
     std::vector<int32_t> cdf_lengths;
     std::vector<int32_t> offsets;
     readJson(cdfs, cdf_lengths, offsets);
-    std::string str = encoder.encode_with_indexes(out_put, indexes, cdfs, cdf_lengths, offsets);
-    std::cout << "encode over" << std::endl;
 
-    writeFile(str, "../../out/1_" + std::to_string(imageWidth) + "_" + std::to_string(imageHeight) + ".bin");
+    // 构建熵编码器
+    RansEncoder encoder;
+    std::string str = encoder.encode_with_indexes(out_put, indexes, cdfs, cdf_lengths, offsets);
+    std::cout << "encode over！" << std::endl;
+    std::string out = output_path + "_" + std::to_string(imageWidth) + "_" + std::to_string(imageHeight) + ".bin";
+    writeFile(str, out);
+
+    return 0;
+}
+
+int main()
+{
+
+    auto start = std::chrono::high_resolution_clock::now();
+    const std::string engine_file = "../models/encoder_u.trt";
+    std::string imagePath = "../data/1.jpg";
+    const std::string outpath = "../out/1";
+
+    pressImage(imagePath, outpath, engine_file);
 
     auto end = std::chrono::high_resolution_clock::now();
-
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "exit with message success! Cast:" << dur.count() << "ms. medians  Size:" << medians.size()
-              << " x_out  Size:" << x_out.size()
-              << " indexes  Size:" << indexes.size()
-              << std::endl;
+    std::cout << "exit with message success! Cast:" << dur.count() << "ms." << std::endl;
 
     return 0;
 }
