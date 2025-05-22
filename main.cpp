@@ -98,7 +98,7 @@ void infer(nvinfer1::ICudaEngine *engine, float *input, int height, int width, f
 {
     nvinfer1::IExecutionContext *context = engine->createExecutionContext();
     // 设置输入形状
-    int latent_h = height / 16; // 4 次 stride=2 降采样
+    int latent_h = height / 16; // 假设 4 次 stride=2 降采样
     int latent_w = width / 16;
     context->setInputShape("input", nvinfer1::Dims4{1, 3, height, width});
 
@@ -122,10 +122,7 @@ void infer(nvinfer1::ICudaEngine *engine, float *input, int height, int width, f
 
     // 清理
     for (int i = 0; i < 4; ++i)
-    {
         cudaFree(buffers[i]);
-    }
-
     // context->destroy();
 }
 
@@ -204,16 +201,14 @@ int compressImage(std::string input_path, std::string out_path, std::string engi
     // writeTxt(x_out, "x_out");
     // writeTxt(medians, "medians");
 
-    std::vector<int32_t> out_put(1 * 320 * latent_w * latent_h);
     quantize_by_block(x_out, medians, out_put, 1, 320, latent_h, latent_w);
 
-    // 从JSON获取cdf
+    RansEncoder encoder;
+
     std::vector<std::vector<int32_t>> cdfs;
     std::vector<int32_t> cdf_lengths;
     std::vector<int32_t> offsets;
     readJson(cdfs, cdf_lengths, offsets);
-
-    RansEncoder encoder;
     std::string str = encoder.encode_with_indexes(out_put, indexes, cdfs, cdf_lengths, offsets);
     std::cout << "encode over !" << std::endl;
     writeFile(str, out_path + "_" + std::to_string(imageWidth) + "_" + std::to_string(imageHeight) + ".bin");
