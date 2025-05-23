@@ -185,7 +185,7 @@ public:
     }
 
     ~CompressEngine() {};
-    std::string compressImage(std::vector<float> input_data, nlohmann::json &j)
+    std::string compress(std::vector<float> input_data, nlohmann::json &j)
     {
 
         int imageHeight = j["height"].get<int>(), imageWidth = j["width"].get<int>();
@@ -235,71 +235,81 @@ public:
         // writeFile(str, out_path + "_" + std::to_string(imageWidth) + "_" + std::to_string(imageHeight) + ".bin");
         // return 0;
     }
+
+    int compressImage(std::string image_path, std::string out_path, int patch_size)
+    {
+
+        std::vector<std::vector<float>> datas;
+        nlohmann::json patchInfo = nlohmann::json::array();
+        std::ofstream outFileBin(out_path + ".bin", std::ios::binary);
+
+        if (!outFileBin)
+        {
+            std::cerr << "Error opening file for writing!" << std::endl;
+            return 1;
+        }
+
+        int orig_h = 0, orig_w = 0;
+        split_image(image_path, datas, patchInfo, orig_h, orig_w, patch_size);
+
+        for (size_t i = 0; i < patchInfo.size(); i++)
+        {
+            std::string data = compress(datas[i], patchInfo[i]);
+            size_t length = data.size();
+            outFileBin.write(data.c_str(), length);
+        }
+
+        if (!outFileBin)
+        {
+            std::cerr << "Error writing to file!" << std::endl;
+            return 1;
+        }
+
+        outFileBin.close();
+        std::cout << "String written to binary file successfully!" << std::endl;
+
+        nlohmann::json jOut;
+        jOut["original_height"] = orig_h;
+        jOut["original_width"] = orig_w;
+        jOut["patch_size"] = patch_size;
+        jOut["patches"] = patchInfo;
+        // 导出到文件
+        std::ofstream out_file_json(out_path + ".json");
+        if (!out_file_json.is_open())
+        {
+            std::cerr << "can not write json" << std::endl;
+        }
+
+        // 写入格式化的 JSON（2空格缩进）
+        out_file_json << jOut.dump(2);
+        out_file_json.close();
+        std::cout << "Json written to file successfully!" << std::endl;
+
+        return 0;
+    }
 };
 
-int main()
+int compressImageTest()
 {
-
     auto start = std::chrono::high_resolution_clock::now();
-
     const std::string engine_file = "../models/encoder_3200.trt";
     CompressEngine compressEngine(engine_file);
 
     std::string imagePath = "../../out/shiyan.png";
-    std::string out_path = "../../out/compress.bin";
-
-    std::vector<std::vector<float>> datas;
-    nlohmann::json patchInfo = nlohmann::json::array();
-    int orig_h = 0, orig_w = 0;
+    std::string out_path = "../../out/compress";
     int patch_size = 3200;
 
-    split_image(imagePath, datas, patchInfo, orig_h, orig_w, patch_size);
-
-    std::ofstream outFile(out_path, std::ios::binary);
-
-    if (!outFile)
-    {
-        std::cerr << "Error opening file for writing!" << std::endl;
-        return 1;
-    }
-
-    for (size_t i = 0; i < patchInfo.size(); i++)
-    {
-        std::string data = compressEngine.compressImage(datas[i], patchInfo[i]);
-        size_t length = data.size();
-        outFile.write(data.c_str(), length);
-    }
-
-    if (!outFile)
-    {
-        std::cerr << "Error writing to file!" << std::endl;
-        return 1;
-    }
-
-    outFile.close();
-    std::cout << "String written to binary file successfully!" << std::endl;
-
-    nlohmann::json jOut;
-
-    jOut["original_height"] = orig_h;
-    jOut["original_width"] = orig_w;
-    jOut["patch_size"] = patch_size;
-    jOut["patches"] = patchInfo;
-
-    // 导出到文件
-    std::ofstream out_file("../../out/compress.json");
-    if (!out_file.is_open())
-    {
-        std::cerr << "can not write json" << std::endl;
-    }
-
-    // 写入格式化的 JSON（4空格缩进）
-    out_file << jOut.dump(2);
-    out_file.close();
+    compressEngine.compressImage(imagePath, out_path, patch_size);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "exit with message success! Cast:" << dur.count() << "ms." << std::endl;
+    return 0;
+}
 
+int main()
+{
+
+    compressImageTest();
     return 0;
 }
