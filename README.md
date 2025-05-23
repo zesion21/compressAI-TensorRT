@@ -23,6 +23,11 @@ project
 |       encoder1024.trt // 只支持 1024*1024
 |       encoder_max_2048.trt // 64*64 ~ 2048*2048
 |—— out //测试输出
+|
+|—— pyDemo //用py还原的代码
+|       MyTest.py //一个简单的图片的压缩和还原
+|       withSplit.py // 带大图拆分的大图压缩和还原（解决内存不足的问题）
+|       splitRaw.py //一个拆分二进制存储图片的demo
 
 ```
 
