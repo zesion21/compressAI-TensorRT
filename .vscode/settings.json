@@ -81,6 +81,8 @@
         "numeric": "cpp",
         "ranges": "cpp",
         "span": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
     }
 }
