@@ -12,6 +12,7 @@
 #include "includes/encode.h"
 #include "includes/rans_interface.hpp"
 #include "includes/json.hpp"
+#include "includes/read_raw_cuda.h"
 
 // 自定义 TensorRT 日志类
 class Logger : public nvinfer1::ILogger
@@ -157,80 +158,25 @@ private:
         return 0;
     }
 
-    int readRaw(std::ifstream &file, std::vector<float> &output, int &orig_h, int &orig_w, int preHeight)
+    int readRawGPU(std::ifstream *file, std::vector<float> &output, int &orig_h, int &orig_w, int preHeight)
     {
 
-        int column = 11936;
-        int size = preHeight;
         int xReadSize = 9052;
         orig_w = xReadSize;
 
-        // int offset = size * column * 2 * i;
-        // 跳到偏移位置
-        // file.seekg(offset, std::ios::beg);
+        int column = 11936;
+        int size = preHeight * column * 2; // 每块的大小
 
-        // 检查文件是否打开
-        if (!file.is_open())
+        if (!file->is_open())
         {
             throw std::runtime_error("Raw File is not opend");
         }
 
-        // 读取大端 uint16 数据，计算实际可读取的元素数
-        std::vector<uint16_t> raw_data(size * column);
-        int actual_elements = 0;
-        for (int i = 0; i < size * column && file; i += 1)
-        {
-            char high, low;
-            if (file.read(reinterpret_cast<char *>(&high), 1) && file.read(reinterpret_cast<char *>(&low), 1))
-            {
-                uint16_t num = (static_cast<unsigned char>(high) << 8) | static_cast<unsigned char>(low);
-                raw_data[i] = num;
-                ++actual_elements;
-            }
-            else
-                break;
-        }
-
-        // 计算实际行数
-        int actual_rows = actual_elements / column;
-        orig_h = actual_rows;
-        if (actual_rows == 0)
-        {
-            output.clear();
-            return 0; // 没有足够的数据
-        }
-
-        std::vector<uint16_t> tempPANdata(actual_rows * xReadSize);
-        for (int i = 0; i < actual_rows; ++i)
-        {
-            for (int j = 0; j < xReadSize; ++j)
-            {
-                tempPANdata[i * xReadSize + j] = raw_data[i * column + 32 + j];
-            }
-        }
-
-        // 寻找最大值和最小值
-        uint16_t max_val = *std::max_element(tempPANdata.begin(), tempPANdata.end());
-        uint16_t min_val = *std::min_element(tempPANdata.begin(), tempPANdata.end());
-
-        // 归一化[0,1]
-        std::vector<float> tempOutput(actual_rows * xReadSize);
-        float range = static_cast<float>(max_val - min_val);
-        if (range == 0)
-            range = 1.0f; // 防止除零
-
-        std::cout << "max_val:" << static_cast<int>(max_val) << " min_val:" << static_cast<int>(min_val) << " range:" << range << std::endl;
-        for (size_t i = 0; i < tempPANdata.size(); i++)
-        {
-            tempOutput[i] = (tempPANdata[i] - min_val) / range;
-        }
-
-        output.clear();
-        output.reserve(actual_rows * xReadSize * 3);
-        for (int i = 0; i < 3; ++i)
-        {
-            output.insert(output.end(), tempOutput.begin(), tempOutput.end());
-        }
+        char *buffer = new char[size];
+        file->read(buffer, size);
+        int readSize = static_cast<int>(file->gcount());
+        std::cout << "Bytes read: " << readSize << std::endl;
+        readRawCUDA(buffer, readSize, output, orig_h, orig_w, preHeight);
         return 0;
     }
 
@@ -401,7 +347,7 @@ public:
             std::vector<float> datas;
             int orig_h = 0, orig_w = 0;
 
-            readRaw(file, datas, orig_h, orig_w, preHeight);
+            readRawGPU(&file, datas, orig_h, orig_w, preHeight);
 
             std::cout << "input patch size :" << datas.size() << std::endl;
 

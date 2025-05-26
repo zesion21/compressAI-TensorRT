@@ -2,9 +2,12 @@
 cmake_minimum_required(VERSION 3.10)
 
 # 定义项目名称
-project(engine_runtime)
+project(engine_runtime LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_ARCHITECTURES 75)
 
 set(CUDA_ROOT "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9")
 set(CUDA_INCLUDE_DIRS "${CUDA_ROOT}/include")

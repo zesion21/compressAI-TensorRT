@@ -83,6 +83,7 @@
         "span": "cpp",
         "valarray": "cpp",
         "coroutine": "cpp",
-        "resumable": "cpp"
+        "resumable": "cpp",
+        "cstdarg": "cpp"
     }
 }
