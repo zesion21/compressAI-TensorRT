@@ -95,7 +95,7 @@ __global__ void replicateChannels(const float *tempOutput, float *output, int ac
     }
 }
 
-extern "C" int readRawCUDA(char *buffer, int readSize, std::vector<float> &output, int &orig_h, int &orig_w, int preHeight)
+extern "C" int readRawCUDA(char *buffer, int readSize, std::vector<float> &output, int &orig_h, int &orig_w, int preHeight, int &c_max_val, int &c_min_val)
 {
     int xReadSize = 9052;
     orig_w = xReadSize;
@@ -159,8 +159,11 @@ extern "C" int readRawCUDA(char *buffer, int readSize, std::vector<float> &outpu
     // // 计算最终最小/最大值
     uint16_t min_val = *std::min_element(min_vals.begin(), min_vals.end());
     uint16_t max_val = *std::max_element(max_vals.begin(), max_vals.end());
-    std::cout << "max: " << static_cast<int>(max_val) << " min: " << static_cast<int>(min_val)
-              << " range: " << static_cast<float>(max_val - min_val) << std::endl;
+
+    c_max_val = static_cast<int>(max_val);
+    c_min_val = static_cast<int>(min_val);
+
+    std::cout << "max: " << c_max_val << " min: " << c_min_val << " range: " << static_cast<float>(c_max_val - c_min_val) << std::endl;
 
     // // 核函数 4：归一化数据
     normalizeData<<<blocks, threadsPerBlock>>>(d_tempPANdata, d_tempOutput, min_val, max_val, data_size);

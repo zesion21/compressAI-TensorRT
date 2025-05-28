@@ -158,7 +158,7 @@ private:
         return 0;
     }
 
-    int readRawGPU(std::ifstream *file, std::vector<float> &output, int &orig_h, int &orig_w, int preHeight)
+    int readRawGPU(std::ifstream *file, std::vector<float> &output, int &orig_h, int &orig_w, int preHeight, int &max_val, int &min_val)
     {
 
         int xReadSize = 9052;
@@ -176,7 +176,7 @@ private:
         file->read(buffer, size);
         int readSize = static_cast<int>(file->gcount());
         std::cout << "Bytes read: " << readSize << std::endl;
-        readRawCUDA(buffer, readSize, output, orig_h, orig_w, preHeight);
+        readRawCUDA(buffer, readSize, output, orig_h, orig_w, preHeight, max_val, min_val);
         return 0;
     }
 
@@ -346,8 +346,9 @@ public:
             std::string out_path_i = out_path + ("_" + std::to_string(rawPatch));
             std::vector<float> datas;
             int orig_h = 0, orig_w = 0;
+            int max_val = 0, min_val = 65535;
 
-            readRawGPU(&file, datas, orig_h, orig_w, preHeight);
+            readRawGPU(&file, datas, orig_h, orig_w, preHeight, max_val, min_val);
 
             std::cout << "input patch size :" << datas.size() << std::endl;
 
@@ -397,6 +398,9 @@ public:
             jOut["original_width"] = orig_w;
             jOut["patch_size"] = patch_size;
             jOut["patches"] = patchInfo;
+            jOut["max_val"] = max_val;
+            jOut["min_val"] = min_val;
+
             // 导出到文件
             std::ofstream out_file_json(out_path_i + ".json");
             if (!out_file_json.is_open())
