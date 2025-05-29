@@ -37,6 +37,9 @@ struct CompressResult
 class CompressBase
 {
 private:
+    std::string model_name_;
+    int quality_;
+
     void writeTxt(size_t size, auto indexes, std::string name);
     void readJson(const std::string jsonPath)
     {
@@ -116,6 +119,9 @@ protected:
 public:
     CompressBase(std::string model_name, int quality)
     {
+        model_name_ = model_name;
+        quality_ = quality;
+
         std::string engine_file = "../../models/" + model_name + "_" + std::to_string(quality) + ".trt";
         engine = loadEngine(engine_file);
         if (!engine)
@@ -222,6 +228,9 @@ int CompressBase::compressImage(std::string image_path, std::string out_path, in
     jOut["original_width"] = orig_w;
     jOut["patch_size"] = patch_size;
     jOut["patches"] = patchInfo;
+    jOut["model_name"] = model_name_;
+    jOut["quality"] = quality_;
+
     // 导出到文件
     std::ofstream out_file_json(out_path + ".json");
     if (!out_file_json.is_open())
@@ -317,6 +326,8 @@ int CompressBase::compressRaw(std::string input_path, std::string out_path, int 
         jOut["patches"] = patchInfo;
         jOut["max_val"] = max_val;
         jOut["min_val"] = min_val;
+        jOut["model_name"] = model_name_;
+        jOut["quality"] = quality_;
 
         // 导出到文件
         std::ofstream out_file_json(out_path_i + ".json");
