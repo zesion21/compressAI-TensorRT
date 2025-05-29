@@ -41,6 +41,12 @@ aux_source_directory(./src DIR_SRCS)
 # 添加可执行文件
 add_executable(engine_runtime main.cpp ${DIR_SRCS} ${DIR_INCLUDE})
 
+target_include_directories(engine_runtime PUBLIC
+    ${CMAKE_SOURCE_DIR}/includes
+    ${TENSORRT_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS} ${OPENCV_ROOT_INCLUDE_DIRS}
+)
+
 # 链接库
 target_link_libraries(engine_runtime
     ${NVINFER_LIBRARY}

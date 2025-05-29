@@ -1,12 +1,6 @@
 #include "../includes/image.h"
 #include "cmath"
 
-void greet(std::string name)
-{
-
-    std::cout << "Hello " << name << std::endl;
-}
-
 std::vector<float> imageToTensor(const std::string &image_path, int &height, int &width)
 {
 
